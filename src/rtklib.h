@@ -919,6 +919,7 @@ typedef struct {        /* RTCM control struct type */
     uint32_t nmsg2[100]; /* message count of RTCM 2 (1-99:1-99,0:other) */
     uint32_t nmsg3[400]; /* message count of RTCM 3 (1-299:1001-1299,300-329:4070-4099,0:ohter) */
     char opt[256];      /* RTCM dependent options */
+    int mark;
 } rtcm_t;
 
 typedef struct {        /* RINEX control struct type */
@@ -1184,6 +1185,7 @@ typedef struct {        /* stream type */
     void *port;         /* type dependent port control struct */
     char path[MAXSTRPATH]; /* stream path */
     char msg [MAXSTRMSG];  /* stream message */
+    int mark;
 } stream_t;
 
 typedef struct {        /* stream converter type */

@@ -2600,6 +2600,7 @@ extern void strinit(stream_t *stream)
     stream->port=NULL;
     stream->path[0]='\0';
     stream->msg [0]='\0';
+    stream->mark=0;
 }
 /* open stream -----------------------------------------------------------------
 *
@@ -2817,10 +2818,11 @@ extern int strread(stream_t *stream, uint8_t *buff, int n)
 {
     uint32_t tick=tickget();
     char *msg=stream->msg;
-    int nr=0,tt;
+    uint8_t *tbuff=0,data=0;
+    int nr=0,tt,ntf=0,i=0,j=0;
 
     tracet(4,"strread: n=%d\n",n);
-    
+
     if (!(stream->mode&STR_MODE_R)||!stream->port) return 0;
     
     strlock(stream);
@@ -2842,6 +2844,53 @@ extern int strread(stream_t *stream, uint8_t *buff, int n)
             return 0;
     }
     if (nr>0) {
+#if 1
+        /* backup buffer */
+        tbuff=malloc(nr*sizeof(uint8_t));
+        if (!tbuff)
+        {
+            strunlock(stream);
+            return 0;
+        }
+        memcpy(tbuff, buff, sizeof(uint8_t)*nr);
+        ntf=nr;
+        i=0;
+        for (j=0;j<ntf;++j)
+        {
+            data = tbuff[j];
+            if (stream->mark)
+            {
+                if (data == 0xEE)
+                {
+                    buff[i++] = 0x11;
+                }
+                else if (data == 0xEC)
+                {
+                    buff[i++] = 0x13;
+                }
+                else if (data == 0x88)
+                {
+                    buff[i++] = 0x77;
+                }
+                else
+                {
+                    buff[i++] = 0x77;
+                    buff[i++] = data;
+                }
+                stream->mark = 0;
+            }
+            else if (data == 0x77)
+            {
+                stream->mark = 1;
+            }
+            else
+            {
+                buff[i++] = data;
+            }
+        }
+        nr=i;
+        free(tbuff);
+#endif
         stream->inb+=nr;
         stream->tact=tick;
     }

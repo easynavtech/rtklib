@@ -118,6 +118,7 @@ extern int init_rtcm(rtcm_t *rtcm)
     for (i=0;i<MAXOBS   ;i++) rtcm->obs.data[i]=data0;
     for (i=0;i<MAXSAT*2 ;i++) rtcm->nav.eph [i]=eph0;
     for (i=0;i<MAXPRNGLO;i++) rtcm->nav.geph[i]=geph0;
+    rtcm->mark=0;
     return 1;
 }
 /* free rtcm control ----------------------------------------------------------
@@ -268,10 +269,43 @@ extern int input_rtcm3(rtcm_t *rtcm, uint8_t data)
     if (rtcm->nbyte==0) {
         if (data!=RTCM3PREAMB) return 0;
         rtcm->buff[rtcm->nbyte++]=data;
+        rtcm->mark=0;
         return 0;
     }
+#if 0
     rtcm->buff[rtcm->nbyte++]=data;
-    
+#else
+    /* serial control for MTK rtcm data string */
+    if (rtcm->mark)
+    {
+        if (data == 0xEE)
+        {
+            rtcm->buff[rtcm->nbyte++] = 0x11;
+        }
+        else if (data == 0xEC)
+        {
+            rtcm->buff[rtcm->nbyte++] = 0x13;
+        }
+        else if (data == 0x88)
+        {
+            rtcm->buff[rtcm->nbyte++] = 0x77;
+        }
+        else if ((rtcm->nbyte+2) < 1200)
+        {
+            rtcm->buff[rtcm->nbyte++] = 0x77;
+            rtcm->buff[rtcm->nbyte++] = data;
+        }
+        rtcm->mark = 0;
+    }
+    else if (data == 0x77)
+    {
+        rtcm->mark = 1;
+    }
+    else
+    {
+        rtcm->buff[rtcm->nbyte++] = data;
+    }
+#endif
     if (rtcm->nbyte==3) {
         rtcm->len=getbitu(rtcm->buff,14,10)+3; /* length without parity */
     }
