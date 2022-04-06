@@ -1983,6 +1983,9 @@ static void sigindex(int sys, const uint8_t *code, int n, const char *opt,
 #endif
     }
 }
+
+static int default_glo_frq_table[32] = { 1, -4, 05, 06, 01, -4, 05, 06, -2, -7, 00, -1, -2, -7, 00, -1, 04, -3, 03, 02, 04, -3, 03, 02, 0, -5, -99, -99, -99, -99, -99, -99 };
+
 /* save obs data in MSM message ----------------------------------------------*/
 static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
                          const double *pr, const double *cp, const double *rr,
@@ -2066,6 +2069,9 @@ static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
             }
             else if (rtcm->nav.glo_fcn[prn-1]>0) {
                 fcn=rtcm->nav.glo_fcn[prn-1]-8;
+            } 
+            else if (default_glo_frq_table[prn-1]!=-99) {
+                fcn=default_glo_frq_table[prn-1];
             }
         }
         for (k=0;k<h->nsig;k++) {
