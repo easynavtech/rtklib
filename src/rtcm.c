@@ -272,7 +272,7 @@ extern int input_rtcm3(rtcm_t *rtcm, uint8_t data)
         rtcm->mark=0;
         return 0;
     }
-#if 0
+#if 1
     rtcm->buff[rtcm->nbyte++]=data;
 #else
     /* serial control for MTK rtcm data string */
