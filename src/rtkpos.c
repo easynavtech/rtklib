@@ -1711,7 +1711,7 @@ static char sat2char(int sat, int *prn)
 }
 /* output the raw data with satellite position & velocity & clock
 */
-static void output_obs_with_satorbit(const obsd_t* obs, int n, const nav_t* nav)
+static void output_obs_with_satorbit(rtk_t* rtk, const obsd_t* obs, int n, const nav_t* nav)
 {
     double* rs = 0, * dts = 0, * var = 0;
     int i, j, f, svh[MAXOBS * 2] = { 0 };
@@ -1726,6 +1726,7 @@ static void output_obs_with_satorbit(const obsd_t* obs, int n, const nav_t* nav)
     double freq[NFREQ + NEXOBS] = { 0 };
     int prn = 0;
     char sys = 0;
+    double* pos = NULL;
 
     if (n < 1) return;
 
@@ -1733,7 +1734,7 @@ static void output_obs_with_satorbit(const obsd_t* obs, int n, const nav_t* nav)
     rs = mat(6, n); dts = mat(2, n); var = mat(1, n);
 
     /* satellite positions/clocks */
-    satposs(time, obs, n, nav, EPHOPT_BRDC, rs, dts, var, svh);
+    satposs(time, obs, n, nav, rtk->opt.sateph, rs, dts, var, svh);
 
     /* output data */
     ws = time2gpst(time, &wk);
@@ -1763,8 +1764,12 @@ static void output_obs_with_satorbit(const obsd_t* obs, int n, const nav_t* nav)
                     }
                 }
             }
-            fprintf(fOUT, "%4i,%10.3f,%3i,%3i,%2i,%3i,%15.4f,%15.4f,%15.4f,%10.4f,%10.4f,%10.4f,%14.4f,%10.4f,%i"
-                , wk, ws, obsd->rcv, obsd->sat, sys, prn
+            if (obsd->rcv == 1)
+                pos = rtk->rb;
+            else
+                pos = rtk->sol.rr;
+            fprintf(fOUT, "%4i,%10.3f,%3i,%14.4f,%14.4f,%14.4f,%3i,%2i,%3i,%15.4f,%15.4f,%15.4f,%10.4f,%10.4f,%10.4f,%14.4f,%10.4f,%i"
+                , wk, ws, obsd->rcv, pos[0], pos[1], pos[2], obsd->sat, sys, prn
                 , rs[i * 6 + 0], rs[i * 6 + 1], rs[i * 6 + 2], rs[i * 6 + 3], rs[i * 6 + 4], rs[i * 6 + 5]
                 , dts[i * 2 + 0] * CLIGHT, dts[i * 2 + 1] * CLIGHT
                 , nf);
@@ -1859,7 +1864,7 @@ extern int rtkpos(rtk_t *rtk, const obsd_t *obs, int n, const nav_t *nav)
     
     time=rtk->sol.time; /* previous epoch */
     
-    output_obs_with_satorbit(obs, n, nav);
+    output_obs_with_satorbit(rtk, obs, n, nav);
 
     /* rover position by single point positioning */
     if (!pntpos(obs,nu,nav,&rtk->opt,&rtk->sol,NULL,rtk->ssat,msg)) {
