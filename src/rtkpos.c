@@ -1696,6 +1696,89 @@ extern void rtkfree(rtk_t *rtk)
     free(rtk->xa); rtk->xa=NULL;
     free(rtk->Pa); rtk->Pa=NULL;
 }
+/* satellite system G,R,E,C,J,I,S */
+static char sat2char(int sat, int *prn)
+{
+    int sys = satsys(sat, prn);
+    if (sys == SYS_GPS) return 'G';
+    else if (sys == SYS_GLO) return 'R';
+    else if (sys == SYS_GAL) return 'E';
+    else if (sys == SYS_CMP) return 'C';
+    else if (sys == SYS_SBS) return 'S';
+    else if (sys == SYS_QZS) return 'J';
+    else if (sys == SYS_IRN) return 'I';
+    else return ' ';
+}
+/* output the raw data with satellite position & velocity & clock
+*/
+static void output_obs_with_satorbit(const obsd_t* obs, int n, const nav_t* nav)
+{
+    double* rs = 0, * dts = 0, * var = 0;
+    int i, j, f, svh[MAXOBS * 2] = { 0 };
+    gtime_t time = { 0 };
+    static FILE* fOUT = NULL;
+    double ep[6] = { 0 }, ws = 0.0;
+    int wk = 0;
+    char fname[255] = { 0 };
+    const obsd_t* obsd = obs + 0;
+    int nf = 0;
+    int nfloc[NFREQ + NEXOBS] = { 0 };
+    double freq[NFREQ + NEXOBS] = { 0 };
+    int prn = 0;
+    char sys = 0;
+
+    if (n < 1) return;
+
+    time = obs[0].time;
+    rs = mat(6, n); dts = mat(2, n); var = mat(1, n);
+
+    /* satellite positions/clocks */
+    satposs(time, obs, n, nav, EPHOPT_BRDC, rs, dts, var, svh);
+
+    /* output data */
+    ws = time2gpst(time, &wk);
+    if (!fOUT)
+    {
+        /* open file */
+        time2epoch(timeadd(time, -18.0), ep);
+        sprintf(fname, "%04i-%04i-%02i-%02i-%02i-%02i-%02i.csv", wk, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], (int)ep[4], (int)ep[5]);
+        fOUT = fopen(fname, "w");
+    }
+    if (fOUT)
+    {
+        for (i = 0, obsd = obs + i; i < n; ++i, ++obsd)
+        {
+            ws = time2gpst(obsd->time, &wk);
+            sys = sat2char(obsd->sat, &prn);
+            nf = 0;
+            for (f = 0; f < (NFREQ + NEXOBS); ++f)
+            {
+                if (obsd->code[f] > 0)
+                {
+                    freq[nf] = sat2freq(obsd->sat, obsd->code[f], nav);
+                    if (freq[nf] > 0.01)
+                    {
+                        nfloc[nf] = f;
+                        ++nf;
+                    }
+                }
+            }
+            fprintf(fOUT, "%4i,%10.3f,%3i,%3i,%2i,%3i,%15.4f,%15.4f,%15.4f,%10.4f,%10.4f,%10.4f,%14.4f,%10.4f,%i"
+                , wk, ws, obsd->rcv, obsd->sat, sys, prn
+                , rs[i * 6 + 0], rs[i * 6 + 1], rs[i * 6 + 2], rs[i * 6 + 3], rs[i * 6 + 4], rs[i * 6 + 5]
+                , dts[i * 2 + 0] * CLIGHT, dts[i * 2 + 1] * CLIGHT
+                , nf);
+            for (j = 0; j < nf; ++j)
+            {
+                f = nfloc[j];
+                fprintf(fOUT, ",%2i,%14.4f,%14.4f,%10.4f,%5.2f,%10.0f", obsd->code[f], obsd->P[f], obsd->L[f], obsd->D[f], obsd->SNR[f] * SNR_UNIT, freq[j]);
+            }
+            fprintf(fOUT, "\n");
+        }
+        fflush(fOUT);
+    }
+    free(rs); free(dts); free(var);
+}
 /* precise positioning ---------------------------------------------------------
 * input observation data and navigation message, compute rover position by 
 * precise positioning
@@ -1776,6 +1859,8 @@ extern int rtkpos(rtk_t *rtk, const obsd_t *obs, int n, const nav_t *nav)
     
     time=rtk->sol.time; /* previous epoch */
     
+    output_obs_with_satorbit(obs, n, nav);
+
     /* rover position by single point positioning */
     if (!pntpos(obs,nu,nav,&rtk->opt,&rtk->sol,NULL,rtk->ssat,msg)) {
         errmsg(rtk,"point pos error (%s)\n",msg);

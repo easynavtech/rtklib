@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     
     prcopt.mode  =PMODE_KINEMA;
     prcopt.navsys=0;
-    prcopt.refpos=1;
+    prcopt.refpos=3;
     prcopt.glomodear=1;
     solopt.timef=0;
     sprintf(solopt.prog ,"%s ver.%s %s",PROGNAME,VER_RTKLIB,PATCH_LEVEL);
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
         else if (n<MAXFILE) infile[n++]=argv[i];
     }
     if (!prcopt.navsys) {
-        prcopt.navsys=SYS_GPS|SYS_GLO;
+        prcopt.navsys=SYS_GPS|SYS_GLO|SYS_GAL;
     }
     if (n<=0) {
         showmsg("error : no input file");
